@@ -1,4 +1,4 @@
-import asyncio, logging, random, string, time, re
+ৈimport asyncio, logging, random, string, time, re
 import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
@@ -7,7 +7,7 @@ BOT_TOKEN        = "8446272435:AAH18fvcHjo5w92_zFZdkRY9_KkF9Kvcq2o"
 CHANNEL_USERNAME = "SPEED_X_OFFICIAL1"
 CHANNEL_LINK     = "https://t.me/SPEED_X_OFFICIAL1"
 MAIL_EXPIRE_MIN  = 10
-BASE_URL         = "https://api.mail.tm"
+BASE_URL         = "https://api.mail.gw"
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
