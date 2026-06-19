@@ -1,4 +1,4 @@
-ৈimport asyncio, logging, random, string, time, re
+import asyncio, logging, random, string, time, re
 import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
