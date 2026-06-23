@@ -7,7 +7,7 @@ BOT_TOKEN        = "8446272435:AAH18fvcHjo5w92_zFZdkRY9_KkF9Kvcq2o"
 CHANNEL_USERNAME = "SPEED_X_OFFICIAL1"
 CHANNEL_LINK     = "https://t.me/SPEED_X_OFFICIAL1"
 MAIL_EXPIRE_MIN  = 10
-BASE_URL         = "https://temp-mail.io/en/api/"
+BASE_URL         = "https://api.mail.tm"
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
