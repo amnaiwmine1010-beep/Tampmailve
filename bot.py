@@ -19,28 +19,33 @@ user_sessions: dict = {}
 
 async def api_get_domains():
     async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.get(f"{BASE_URL}/domains"); r.raise_for_status()
+        r = await c.get(f"{BASE_URL}/domains")
+        r.raise_for_status()
         return [d["domain"] for d in r.json().get("hydra:member", [])]
 
 async def api_create_account(email, pw):
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.post(f"{BASE_URL}/accounts", json={"address": email, "password": pw})
-        r.raise_for_status(); return r.json()
+        r.raise_for_status()
+        return r.json()
 
 async def api_get_token(email, pw):
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.post(f"{BASE_URL}/token", json={"address": email, "password": pw})
-        r.raise_for_status(); return r.json()["token"]
+        r.raise_for_status()
+        return r.json()["token"]
 
 async def api_get_messages(token):
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(f"{BASE_URL}/messages", headers={"Authorization": f"Bearer {token}"})
-        r.raise_for_status(); return r.json().get("hydra:member", [])
+        r.raise_for_status()
+        return r.json().get("hydra:member", [])
 
 async def api_get_message(token, mid):
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(f"{BASE_URL}/messages/{mid}", headers={"Authorization": f"Bearer {token}"})
-        r.raise_for_status(); return r.json()
+        r.raise_for_status()
+        return r.json()
 
 # ══════════════════════════════════════════════════════
 # HELPERS
@@ -160,15 +165,40 @@ async def on_button(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if data == "new_email":
         await q.edit_message_text("⏳  *Generating your email…*", parse_mode="Markdown")
         try:
+            # Fetch domains
             domains = await api_get_domains()
-            if not domains: raise RuntimeError("No domains")
-            email = f"{gen_username()}@{random.choice(domains)}"
-            pw    = gen_password()
-            await api_create_account(email, pw)
-            token = await api_get_token(email, pw)
-            user_sessions[user.id] = {"email": email, "password": pw,
-                                       "token": token, "created_at": time.time()}
+            if not domains:
+                raise RuntimeError("No domains available from API")
+
+            # Shuffle and try up to 3 domains
+            random.shuffle(domains)
+            created = False
+            last_error = None
+            for domain in domains[:3]:
+                try:
+                    email = f"{gen_username()}@{domain}"
+                    pw    = gen_password()
+                    await api_create_account(email, pw)
+                    token = await api_get_token(email, pw)
+                    user_sessions[user.id] = {
+                        "email": email,
+                        "password": pw,
+                        "token": token,
+                        "created_at": time.time()
+                    }
+                    created = True
+                    break
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"Failed to create account on {domain}: {e}")
+                    continue
+
+            if not created:
+                raise RuntimeError(f"All domains failed. Last error: {last_error}")
+
+            # Start expiry watcher
             asyncio.create_task(expiry_watcher(ctx.bot, user.id, email))
+
             tl = time_left(user_sessions[user.id]["created_at"])
             await q.edit_message_text(
                 "✅  *Email Created!*\n"
@@ -188,14 +218,19 @@ async def on_button(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 ])
             )
         except Exception as e:
-            logger.error(f"Email error: {e}")
+            logger.error(f"Email creation error: {e}", exc_info=True)
             await q.edit_message_text(
-                "❌  *Failed. Try again.*", parse_mode="Markdown",
+                "❌  *Failed to create email. Please try again later.*\n\n"
+                "If the problem persists, contact support.",
+                parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔄  Retry", callback_data="new_email")
-                ]]))
+                ]])
+            )
         return
 
+    # ... (the rest of the handlers remain the same as in the original code)
+    # For brevity, I'll include them below (copy from original code)
     if data == "show_email":
         sess = user_sessions.get(user.id)
         if not sess: await q.answer("❌  No active email!", show_alert=True); return
@@ -342,7 +377,7 @@ async def expiry_watcher(bot, user_id, email):
         except Exception: pass
 
 # ══════════════════════════════════════════════════════
-# MAIN — asyncio.run() instead of app.run_polling()
+# MAIN
 # ══════════════════════════════════════════════════════
 
 async def async_main():
@@ -353,7 +388,6 @@ async def async_main():
     async with app:
         await app.start()
         await app.updater.start_polling(drop_pending_updates=True)
-        # Keep running forever
         await asyncio.Event().wait()
 
 def main():
